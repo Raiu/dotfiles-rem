@@ -60,8 +60,8 @@ if [ -z "${REALUSER:-}" ]; then
 fi
 
 DEBNI="DEBIAN_FRONTEND=noninteractive"
-NOREC="--no-install-recommends"
-PACKAGES_UBUNTU="dialog readline-common apt-utils ssh curl wget sudo bash zsh git vim locales ca-certificates gnupg python3-minimal"
+NOREC="--no-install-recommends --no-install-suggests"
+PACKAGES_UBUNTU="dialog readline-common apt-utils ssh curl wget sudo bash zsh git vim locales tzdata ca-certificates gnupg python3-minimal"
 
 
 get_distro() {
