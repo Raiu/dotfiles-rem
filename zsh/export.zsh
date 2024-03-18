@@ -2,6 +2,8 @@
 path=("${HOME}/.local/bin" $path)
 export PATH
 
+[ -z "$DOTFILES" ]  && export DOTFILES="${HOME}/.dotfiles"
+
 # Vim
 export EDITOR=vim
 export VIMINIT='let $MYVIMRC="$XDG_CONFIG_HOME/vim/vimrc" | source $MYVIMRC'

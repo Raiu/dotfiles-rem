@@ -8,7 +8,7 @@ set -e
 [ -z "$XDG_STATE_HOME" ]        && export XDG_STATE_HOME="${HOME}/.local/state"
 [ -z "$DOTFILES_REPO" ]         && export DOTFILES_REPO="Raiu/dotfiles-rem"
 [ -z "$DOTFILES_REMOTE" ]       && export DOTFILES_REMOTE="https://github.com/${DOTFILES_REPO}.git"
-[ -z "$DOTFILES_BRANCH" ]       && export DOTFILES_BRANCH="master"
+[ -z "$DOTFILES_BRANCH" ]       && export DOTFILES_BRANCH="main"
 [ -z "$DOTFILES_LOCATION" ]     && export DOTFILES_LOCATION="${HOME}/.dotfiles"
 [ -z "$DOTBOT_DIR" ]            && export DOTBOT_DIR="${DOTFILES_LOCATION}/.dotbot"
 [ -z "$DOTBOT_BIN" ]            && export DOTBOT_BIN="${DOTBOT_DIR}/bin/dotbot"
@@ -35,6 +35,10 @@ _error()        { printf '%s\n' "${RED}x $*${NO_COLOR}" >&2; }
 _error_exit()   { _error "$@"; exit 1; }
 _exist()        { command -v "$1" 1>/dev/null 2>&1; }
 
+if ! grep -qiE '^ID=ubuntu' /etc/os-release >/dev/null 2>&1; then
+        _error_exit "This script has to be run in an Ubuntu environment"
+fi
+
 ! _exist 'git'  && _error_exit 'install git'
 ! _exist 'curl' && _error_exit 'install curl'
 
@@ -57,7 +61,6 @@ fi
 
 DEBNI="DEBIAN_FRONTEND=noninteractive"
 NOREC="--no-install-recommends"
-NOCACHE="--no-cache"
 PACKAGES_UBUNTU="dialog readline-common apt-utils ssh curl wget sudo bash zsh git vim locales ca-certificates gnupg python3-minimal"
 
 
@@ -153,9 +156,8 @@ export LC_ALL=""
 EOF
 }
 
-# shellcheck disable=SC2317
 create_xdg_dir() {
-    #printf '# Creating XDG directories\n'
+    printf '# Creating XDG directories\n'
     #printf '    * root\n'
     $SUDO install -d -m 700 -o root -g root /root/.cache /root/.config \
       /root/.local/share /root/.local/state
@@ -168,19 +170,14 @@ create_xdg_dir() {
     done
 }
 
-# shellcheck disable=SC2317
-# shellcheck disable=SC2086
 install_pkg() {
     printf '# Installing Ubuntu packages\n'
-
-    # Fix repos
+   
     printf '    * Updating repositories\n'
-    if [ -f "${DOTFILES_DIR}/scripts/update_repo_ubuntu.sh" ] ; then
-        #printf '        -> with local\n'
-        $SUDO sh "${DOTFILES_DIR}/scripts/update_repo_ubuntu.sh"
+    if [ -f "${DOTFILES_LOCATION}/scripts/update_repo_ubuntu.sh" ] ; then
+        $SUDO sh "${DOTFILES_LOCATION}/scripts/update_repo_ubuntu.sh"
         $SUDO $DEBNI apt-get update -y > /dev/null
     else
-        #printf '        -> with apt\n'
         $SUDO $DEBNI apt-get update -y > /dev/null
         $SUDO $DEBNI apt-get install $NOREC software-properties-common -y > /dev/null 2>&1
         $SUDO $DEBNI add-apt-repository universe multiverse restricted -y > /dev/null 2>&1
@@ -198,13 +195,10 @@ install_pkg() {
     $SUDO $DEBNI apt-get clean -y > /dev/null
 }
 
-ubuntu_exa_fix() {
-    if ! grep -qiE '^ID=ubuntu' /etc/os-release >/dev/null 2>&1; then
-        return 0
-    fi
-    if ! [ -f "/usr/local/bin/exa" ]; then
+ubuntu_eza_fix() {
+    if ! [ -f "/usr/local/bin/eza" ]; then
         $SUDO mkdir -p "/usr/local/bin"
-        $SUDO install "${DOTFILES_LOCATION}/bin/exa" "/usr/local/bin/exa"
+        $SUDO install "${DOTFILES_LOCATION}/bin/bin/eza" "/usr/local/bin/eza"
     fi
 }
 
@@ -232,7 +226,7 @@ main() {
 
     setup_zsh
 
-    ubuntu_exa_fix # temp solution to ubuntu exa
+    ubuntu_eza_fix # temp solution to ubuntu eza
 
     ###
     printf 'Change shell\n'

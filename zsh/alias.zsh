@@ -28,16 +28,16 @@ alias _='sudo '
 _exist "batcat" && alias bat="batcat"
 _exist "fdfind" && alias fd="fdfind"
 
-# use exa
-if _exist "exa"; then
-    alias ls='exa --icons --group-directories-first'
-    alias lsa='exa -a --icons --group-directories-first'
-    alias lt='exa -T --group-directories-first --icons --git'
-    alias lta='exa -Ta --group-directories-first --icons --git'
-    alias ll='exa -lmh --group-directories-first --color-scale --icons'
-    alias la='exa -lamhg --group-directories-first --color-scale --icons --git'
-    alias laa='exa -lamhg@ --group-directories-first --color-scale --icons --git'
-    alias lx='exa -lbhHigUmuSa@ --group-directories-first --color-scale --icons --git --time-style=long-iso'
+# use eza
+if _exist "eza"; then
+    alias ls='eza --icons --group-directories-first'
+    alias lsa='eza -a --icons --group-directories-first'
+    alias lt='eza -T --group-directories-first --icons --git'
+    alias lta='eza -Ta --group-directories-first --icons --git'
+    alias ll='eza -lmh --group-directories-first --color-scale --icons'
+    alias la='eza -lamhg --group-directories-first --color-scale --icons --git'
+    alias laa='eza -lamhg@ --group-directories-first --color-scale --icons --git'
+    alias lx='eza -lbhHigUmuSa@ --group-directories-first --color-scale --icons --git --time-style=long-iso'
 else
     alias ls='LC_COLLATE=C ls -h --group-directories-first --color=auto'
     alias lsa='LC_COLLATE=C ls -Ah --group-directories-first --color=auto'

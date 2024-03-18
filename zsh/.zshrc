@@ -5,15 +5,15 @@ _exist() { command -v $1 >/dev/null 2>&1 }
 [[ ! -d "${XDG_STATE_HOME}/zsh" ]]  && mkdir -p "${XDG_STATE_HOME}/zsh"
 [[ ! -d "${XDG_CACHE_HOME}/zsh" ]]  && mkdir -p "${XDG_CACHE_HOME}/zsh"
 
-# Source some files
-[[ -e "${ZDOTDIR}/export.zsh" ]]    && source "${ZDOTDIR}/export.zsh"
-[[ -e "${ZDOTDIR}/config.zsh" ]]    && source "${ZDOTDIR}/config.zsh"
-
 # antidote
 [[ -e "${ZDOTDIR}/antidote" ]] ||
     git clone "https://github.com/mattmc3/antidote.git" "${ZDOTDIR}/antidote"
 source "${ZDOTDIR}/antidote/antidote.zsh"
 antidote load "${ZDOTDIR}/plugins.list"
+
+# Source some files
+[[ -e "${ZDOTDIR}/export.zsh" ]]    && source "${ZDOTDIR}/export.zsh"
+[[ -e "${ZDOTDIR}/config.zsh" ]]    && source "${ZDOTDIR}/config.zsh"
 
 # Prompt
 [[ -e "${ZDOTDIR}/prompt.zsh" ]]    && source "${ZDOTDIR}/prompt.zsh"
