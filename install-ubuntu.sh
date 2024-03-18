@@ -26,6 +26,8 @@ UNDERLINE="$(tput smul 2>/dev/null      || printf '')"
   MAGENTA="$(tput setaf 5 2>/dev/null   || printf '')"
  NO_COLOR="$(tput sgr0 2>/dev/null      || printf '')"
 
+# Helpers
+###
 _completed()    { printf '%s\n' "${GREEN}✓${NO_COLOR} $*"; }
 _info()         { printf '%s\n' "${BOLD}${GREY}>${NO_COLOR} $*"; }
 _warn()         { printf '%s\n' "${YELLOW}! $*${NO_COLOR}"; }
@@ -33,8 +35,8 @@ _error()        { printf '%s\n' "${RED}x $*${NO_COLOR}" >&2; }
 _error_exit()   { _error "$@"; exit 1; }
 _exist()        { command -v "$1" 1>/dev/null 2>&1; }
 
-
-! _exist 'git' && _error_exit 'install git'
+! _exist 'git'  && _error_exit 'install git'
+! _exist 'curl' && _error_exit 'install curl'
 
 
 SUDO=''
@@ -53,7 +55,23 @@ if [ -z "${REALUSER:-}" ]; then
     fi
 fi
 
+DEBNI="DEBIAN_FRONTEND=noninteractive"
+NOREC="--no-install-recommends"
+NOCACHE="--no-cache"
+PACKAGES_UBUNTU="dialog readline-common apt-utils ssh curl wget sudo bash zsh git vim locales ca-certificates gnupg python3-minimal"
 
+
+get_distro() {
+    [ ! -f "/etc/os-release" ] && _error "/etc/os-release does not exist."
+    distro_id=$(grep "^ID=" /etc/os-release | cut -d= -f2 | awk '{print tolower($0)}')
+    [ -z "$distro_id" ] && _error 'ID field not found in /etc/os-release.'
+    printf '%s' "$distro_id"
+}
+
+
+###
+# Prime dotfiles
+###
 is_correct_repo() {
     dir=$1
     url=$2
@@ -66,14 +84,7 @@ is_correct_repo() {
 
 
 clone_dotfiles() {
-    if [ -d "$DOTFILES_LOCATION" ]; then
-        if ! is_correct_repo "$DOTFILES_LOCATION" "$DOTFILES_REMOTE"; then
-            _error "${DOTFILES_LOCATION} already exists and it doesnt contain our repo."
-            return 1
-        fi
-    else
-        git clone "$DOTFILES_REMOTE" "$DOTFILES_LOCATION" --recursive
-    fi
+    git clone "$DOTFILES_REMOTE" "$DOTFILES_LOCATION" --recursive
 }
 
 run_dotbot() {
@@ -82,11 +93,109 @@ run_dotbot() {
     "${DOTBOT_BIN}" -d "${DOTFILES_LOCATION}" -c "${DOTBOT_CONFIG}" "${@}"
 }
 
-setup() {
-    setup_script=$1
-    printf '* Setup: %s\n' "$setup_script"
-    sh "${DOTFILES_LOCATION}/setup/${setup_script}/${setup_script}.sh" || 
-        _error "${setup_script} setup script failed"
+###
+# Config ubuntu env
+###
+
+setup_locales_deb() {
+    $SUDO tee '/etc/locale.gen' > /dev/null << EOF
+en_US.UTF-8 UTF-8
+en_GB.UTF-8 UTF-8
+sv_SE.UTF-8 UTF-8
+EOF
+    $SUDO locale-gen > /dev/null
+    $SUDO tee '/etc/default/keyboard' > /dev/null << EOF
+XKBMODEL="pc105"
+XKBLAYOUT="se"
+XKBVARIANT=""
+XKBOPTIONS=""
+BACKSPACE="guess"
+EOF
+}
+
+setup_zsh() {
+    printf '# Configuring ZSH\n'
+    $SUDO mkdir -p '/etc/zsh'
+    
+    $SUDO tee '/etc/zsh/zshenv' > /dev/null << 'EOF'
+if [[ -z "$PATH" || "$PATH" == "/bin:/usr/bin" ]]
+then
+        export PATH="/usr/local/bin:/usr/bin:/bin"
+fi
+
+# XDG
+export XDG_CONFIG_HOME="$HOME/.config"
+export XDG_CACHE_HOME="$HOME/.cache"
+export XDG_DATA_HOME="$HOME/.local/share"
+export XDG_STATE_HOME="$HOME/.local/state"
+export XDG_DATA_DIRS="/usr/local/share:/usr/share"
+export XDG_CONFIG_DIRS="/etc/xdg"
+
+# ZSH
+export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
+
+# Locales
+export LANG="en_GB.UTF-8"
+export LANGUAGE="en_GB:en"
+export LC_CTYPE="en_GB.UTF-8"
+export LC_NUMERIC="sv_SE.utf8"
+export LC_TIME="sv_SE.utf8"
+export LC_COLLATE="en_GB.UTF-8"
+export LC_MONETARY="sv_SE.utf8"
+export LC_MESSAGES="en_GB.UTF-8"
+export LC_PAPER="sv_SE.utf8"
+export LC_NAME="sv_SE.UTF-8"
+export LC_ADDRESS="sv_SE.UTF-8"
+export LC_TELEPHONE="sv_SE.UTF-8"
+export LC_MEASUREMENT="sv_SE.utf8"
+export LC_IDENTIFICATION="sv_SE.UTF-8"
+export LC_ALL=""
+EOF
+}
+
+# shellcheck disable=SC2317
+create_xdg_dir() {
+    #printf '# Creating XDG directories\n'
+    #printf '    * root\n'
+    $SUDO install -d -m 700 -o root -g root /root/.cache /root/.config \
+      /root/.local/share /root/.local/state
+    for user_home in /home/*; do
+        username=$(basename "$user_home")
+        #printf '    * %s\n' "$username"
+        $SUDO install -d -m 700 -o "$username" -g "$username" "${user_home}/.cache" \
+          "${user_home}/.config" "${user_home}/.local/bin" "${user_home}/.local/state" \
+          "${user_home}/.local/share"
+    done
+}
+
+# shellcheck disable=SC2317
+# shellcheck disable=SC2086
+install_pkg() {
+    printf '# Installing Ubuntu packages\n'
+
+    # Fix repos
+    printf '    * Updating repositories\n'
+    if [ -f "${DOTFILES_DIR}/scripts/update_repo_ubuntu.sh" ] ; then
+        #printf '        -> with local\n'
+        $SUDO sh "${DOTFILES_DIR}/scripts/update_repo_ubuntu.sh"
+        $SUDO $DEBNI apt-get update -y > /dev/null
+    else
+        #printf '        -> with apt\n'
+        $SUDO $DEBNI apt-get update -y > /dev/null
+        $SUDO $DEBNI apt-get install $NOREC software-properties-common -y > /dev/null 2>&1
+        $SUDO $DEBNI add-apt-repository universe multiverse restricted -y > /dev/null 2>&1
+    fi
+
+
+    printf '    * Upgrading\n'
+    $SUDO $DEBNI apt-get upgrade -y > /dev/null
+  
+    printf '    * Installing packages: %s\n' "$PACKAGES_UBUNTU"
+    $SUDO $DEBNI apt-get install $NOREC $PACKAGES_UBUNTU -y > /dev/null 2>&1
+  
+    printf '    * Cleaning up\n'
+    $SUDO $DEBNI apt-get autoremove -y > /dev/null
+    $SUDO $DEBNI apt-get clean -y > /dev/null
 }
 
 ubuntu_exa_fix() {
@@ -99,35 +208,57 @@ ubuntu_exa_fix() {
     fi
 }
 
+###
+# Run functions
+###
 main() {
+
+    ###
     printf '# Cloning dotfiles\n'
-    clone_dotfiles
-    printf '# Running dotbot\n'
-    run_dotbot "${@}"
-    setup 'pkg'
-    setup 'vim'
-    echo ""
+    if [ -d "$DOTFILES_LOCATION" ]; then
+        if ! is_correct_repo "$DOTFILES_LOCATION" "$DOTFILES_REMOTE"; then
+            _error_exit "${DOTFILES_LOCATION} already exists and it doesnt contain our repo."
+        fi
+    else
+        clone_dotfiles
+    fi
+
+    ###
+    install_pkg
+
+    setup_locales_deb
+
+    create_xdg_dir
+
+    setup_zsh
 
     ubuntu_exa_fix # temp solution to ubuntu exa
-    echo ""
 
+    ###
     printf 'Change shell\n'
     $SUDO usermod --shell "$(command -v zsh)" "${REALUSER}" > /dev/null 2>&1
-    echo ""
 
-    printf 'Nopasswd\n'
+    ###
+    printf 'Sudo\n'
     if [ "$(id -u)" -ne 0 ] ; then
         file="/etc/sudoers.d/nopasswd_$REALUSER"
         content="$REALUSER ALL=(ALL:ALL) NOPASSWD: ALL"
         printf "%s" "$content" | $SUDO tee "$file" > /dev/null 2>&1
     fi
+    printf "%s" "Defaults !admin_flag" | \
+      $SUDO tee "/etc/sudoers.d/disable_admin_file_in_home" > /dev/null 2>&1
 
-    echo ""
+    ###
+    printf '# Running dotbot\n'
+    run_dotbot "${@}"
 
+    ###
     return 0
 }
 
-main "${@}"
 
-echo ""
+###
+# Run
+###
+main "${@}"
 exit 0

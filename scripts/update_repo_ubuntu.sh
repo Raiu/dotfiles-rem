@@ -33,7 +33,9 @@ EOF
 }
 
 MIRRORS="
+https://mirror.bahnhof.net/ubuntu
 http://ftp.acc.umu.se/ubuntu
+http://ubuntu.mirror.su.se/ubuntu
 http://ftp.uninett.no/ubuntu
 https://mirror.asergo.com/ubuntu
 http://mirror.wtnet.de/ubuntu
